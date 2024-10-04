@@ -2,6 +2,7 @@
 using Akka.Actor;
 using Akka.Hosting;
 using MessageProcessor.Actors;
+using MessageProcessor.Services;
 
 namespace MessageProcessor
 {
@@ -12,7 +13,7 @@ namespace MessageProcessor
             var builder = WebApplication.CreateBuilder(args);
 
             // Add services to the container.
-
+            builder.Services.AddTransient<WeatherService>();
             builder.Services.AddControllers();
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
@@ -23,6 +24,7 @@ namespace MessageProcessor
                 {
                     //props
                     var mainActorProps = resolver.Props<MainActor>()
+                        
                         .WithSupervisorStrategy(SupervisorStrategy.DefaultStrategy);
                     //instance
                     var mainActor = system.ActorOf(mainActorProps, nameof(MainActor));
