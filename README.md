@@ -18,14 +18,7 @@ Next, set up your `ActorSystem` in the `Program.cs` of your application:
   {
     configurationBuilder.WithActors((system, registry, resolver) =>
     {
-         //props
-         var mainActorProps = resolver.Props<MainActor>()
-                        
-         .WithSupervisorStrategy(SupervisorStrategy.DefaultStrategy);
-         //instance
-         var mainActor = system.ActorOf(mainActorProps, nameof(MainActor));
-         //registry
-         registry.Register<MainActor>(mainActor);
+         //register actors here
      });         
  });
 ```
@@ -63,23 +56,23 @@ public class MainActor:ReceiveActor
 2. **Register the Actor**: Use the Akka.Hosting API to register your actor in the `ConfigureServices` method.
 
 ```csharp
-public class Program
+var builder = WebApplication.CreateBuilder(args);
+
+             
+builder.Services.AddAkka("MessageProcessor", (configurationBuilder) =>
 {
-    public void ConfigureServices(IServiceCollection services)
-    {
-        services.AddAkka("MyActorSystem", (builder, config) =>
-        {
-            builder.WithActors((system, actorRegistry) =>
-            {
-                var mainActorProps = resolver
-                        .Props<MainActor>()
-                        .WithSupervisorStrategy(defaultStrategy);
-                    var mainActor = system.ActorOf(mainActorProps, nameof(MainActor));
-                actorRegistry.Register<MainActor>();
-            });
-        });
-    }
-}
+ configurationBuilder.WithActors((system, registry, resolver) =>
+ {
+  //props
+  var mainActorProps = resolver.Props<MainActor>()
+    .WithSupervisorStrategy(SupervisorStrategy.DefaultStrategy);
+    //instance
+    var mainActor = system.ActorOf(mainActorProps, nameof(MainActor));
+   //registry
+   registry.Register<MainActor>(mainActor);
+ });
+});
+var app = builder.Build();
 ```
 
 3.**Refactor MainActor into Constituent Child Actors**
@@ -192,26 +185,30 @@ var builder = WebApplication.CreateBuilder(args);
 
  // add transient or singleton services for actor dependencies.
  //scoped usually causes`TypeLoadException`
-builder.Services.AddTransient<WeatherService>();
-builder.Services.AddControllers();
-            
-builder.Services.AddAkka("MessageProcessor", (configurationBuilder) =>
-{
- configurationBuilder.WithActors((system, registry, resolver) =>
- {
-  //props
-  var mainActorProps = resolver.Props<MainActor>()
-    .WithSupervisorStrategy(SupervisorStrategy.DefaultStrategy);
-    //instance
-    var mainActor = system.ActorOf(mainActorProps, nameof(MainActor));
-   //registry
-   registry.Register<MainActor>(mainActor);
- });
-});
-var app = builder.Build();
-```
+ builder.Services.AddTransient<WeatherService>();
 
+ var app = builder.Build();
+
+ //actor class using the dependency
+ public class LowWeatherForecastActor:ReceiveActor
+{
+    public LowWeatherForecastActor(WeatherService weatherService)
+    {
+        Receive<LowWeatherForecast>(forecast =>
+        {
+            Console.WriteLine($"Received a low weather forecast with temperature {forecast.ForecastType}");
+            Console.WriteLine($"The weather is {weatherService.GetWeather()}");
+        });
+    }
+}
+```
 
 ## Conclusion
 
 By utilizing the `DependencyResolver` in `Akka.DependencyInjection`, you can effectively manage child actors and their dependencies, simplifying the migration process. This approach not only enhances the maintainability of your code but also aligns with modern dependency injection practices. With the steps outlined above, you can escape the complexities of child actor management and focus on building robust Akka applications.
+
+## References
+- [Akka.Hosting](https://petabridge.com/blog/intro-akka-hosting)
+- [Akka.DependencyInjection](https://getakka.net/articles/actors/dependency-injection.html)
+- [Akka.NET](https://getakka.net/)
+- [Sample Code](https://github.com/duhowise/MessageProcessor)
