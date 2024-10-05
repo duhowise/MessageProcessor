@@ -299,7 +299,7 @@ var builder = WebApplication.CreateBuilder(args);
 
  var app = builder.Build();
 
- //actor class using the dependency
+ //directly consume dependency in child actor
  public class LowWeatherForecastActor:ReceiveActor
 {
     public LowWeatherForecastActor(WeatherService weatherService)
@@ -311,11 +311,29 @@ var builder = WebApplication.CreateBuilder(args);
         });
     }
 }
+
+ //OR depend on IServiceScopeFactory
+ public class LowWeatherForecastActor:ReceiveActor
+{
+    public LowWeatherForecastActor(IServiceScopeFactory serviceScopeFactory)
+    {
+        using var scope = serviceScopeFactory.CreateScope();
+        var weatherService = scope.ServiceProvider.GetRequiredService<WeatherService>();
+        Receive<LowWeatherForecast>(forecast =>
+        {
+            Console.WriteLine($"Received a low weather forecast with temperature {forecast.ForecastType}");
+            Console.WriteLine($"The weather is {weatherService.GetWeather()}");
+        });
+    }
+}
 ```
 
 ## Conclusion
 
-By utilizing the `DependencyResolver` in `Akka.DependencyInjection`, you can effectively manage child actors and their dependencies, simplifying the migration process. This approach not only enhances the maintainability of your code but also aligns with modern dependency injection practices. With the steps outlined above, you can escape the complexities of child actor management and focus on building robust Akka applications.
+By utilizing the `DependencyResolver` in `Akka.DependencyInjection`, you can effectively manage child actors and their dependencies, simplifying the migration process.
+You can also redesign your actors to only depend on the service provider to help reduce the number of dependencies injected during manual child actor creation.
+These approaches not only enhance the maintainability of your code but also aligns with modern dependency injection practices while creating child actors.
+With the steps outlined above, you can escape the complexities of child actor management and focus on building robust Akka applications.
 
 ## References
 - [Akka.Hosting](https://petabridge.com/blog/intro-akka-hosting)
