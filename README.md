@@ -163,8 +163,9 @@ After this the main actor can be registered in the `Program.cs` as shown below:
 
 ```csharp
 var builder = WebApplication.CreateBuilder(args);
-// Register WeatherService as a singleton
-builder.Services.AddSingleton<WeatherService>();
+// add transient or singleton services for actor dependencies.
+ //scoped usually causes`TypeLoadException`
+ builder.Services.AddSingleton<WeatherService>();
 
 // Configure Akka.NET ActorSystem
 builder.Services.AddAkka("MessageProcessor", (configurationBuilder, provider) =>
@@ -182,7 +183,67 @@ var app = builder.Build();
 app.Run();
 
 ```
-It is immediately visible how much more we needed to write to mamage one dependency for one child actor. Imagine if this actor had five more and the other child actors, also had two each; this could immediately evolve into a very hard to manage mess, causing readability to suffer.
+It is immediately visible how much more we needed to write to manage one dependency for one child actor. Imagine if this actor had five more and the other child actors, also had two each; this could immediately evolve into a very hard to manage mess, causing readability to suffer.
+2. **`IServiceScopeFactory`, `IServiceProvider` to the rescue**. 
+A very useful middle ground in manually creating child actors is to take a dependency only on the `IServiceProvider` or the `IServiceScopeFactory` then creating your own scope and resolving all required dependencies yourself. This way, the main actor is not coupled to the dependency, and the child actors can be created with their dependencies. 
+Also, the `IServiceProvider` or `IServiceScopeFactory` can be directly injected into the main actor and passed to the child actors without any need to configure additional dependencies(while registering the main actor). It is also important to note that the `IServiceProvider` and `IServiceScopeFactory` allow you to create your own scope, making it possible to resolve and use scoped dependencies without any issues. 
+Our actors and configurations should look now like this:
+```csharp
+//configuration
+ var builder = WebApplication.CreateBuilder(args);
+
+     // Add services to the container.
+     builder.Services.AddScoped<WeatherService>();
+           
+     builder.Services.AddAkka("MessageProcessor", (configurationBuilder) =>
+     {
+     configurationBuilder.WithActors((system, registry, resolver) =>
+     {
+     //props
+     var mainActorProps = resolver.Props<MainActor>()              
+       .WithSupervisorStrategy(SupervisorStrategy.DefaultStrategy);
+     //instance
+     var mainActor = system.ActorOf(mainActorProps, nameof(MainActor));
+     //registry
+     registry.Register<MainActor>(mainActor);
+     //nothing  changes in the actor registration
+      });
+     });
+ var app = builder.Build();
+            
+    //main actor
+public class MainActor:ReceiveActor
+{
+    //main actor takes a dependency on the IServiceScopeFactory
+    public MainActor(IServiceScopeFactory serviceScopeFactory)
+    {
+        var lowWeatherForecastActor = Context.ActorOf(Props.Create(()=>new LowWeatherForecastActor(serviceScopeFactory)),nameof(LowWeatherForecastActor));
+        var mediumWeatherForecastActor = Context.ActorOf(Props.Create <MediumWeatherForecastActor >(),nameof(MediumWeatherForecastActor));
+        var highWeatherForecastActor = Context.ActorOf(Props.Create<HighWeatherForecastActor>(),nameof(HighWeatherForecastActor));
+        
+        
+        Receive<LowWeatherForecast>(forecast =>
+        {
+            lowWeatherForecastActor.Forward(forecast);
+        });
+    }
+}
+
+//child actor with dependency
+public class LowWeatherForecastActor:ReceiveActor
+{
+    public LowWeatherForecastActor(IServiceScopeFactory serviceScopeFactory)
+    {
+        using var scope = serviceScopeFactory.CreateScope();
+        var weatherService = scope.ServiceProvider.GetRequiredService<WeatherService>();
+        Receive<LowWeatherForecast>(forecast =>
+        {
+            Console.WriteLine($"Received a low weather forecast with temperature {forecast.ForecastType}");
+            Console.WriteLine($"The weather is {weatherService.GetWeather()}");
+        });
+    }
+}
+```
 
 ## Refactor to Dependency Resolver
 1. **Recreate the Child Actors**: In your main actor using the `DependencyResolver.For`.
@@ -233,6 +294,7 @@ var builder = WebApplication.CreateBuilder(args);
 
  // add transient or singleton services for actor dependencies.
  //scoped usually causes`TypeLoadException`
+ //or use IServiceScopeFactory,IserviceProvider
  builder.Services.AddTransient<WeatherService>();
 
  var app = builder.Build();
