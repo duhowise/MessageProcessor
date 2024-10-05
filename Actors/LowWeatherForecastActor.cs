@@ -6,8 +6,10 @@ namespace MessageProcessor.Actors;
 
 public class LowWeatherForecastActor:ReceiveActor
 {
-    public LowWeatherForecastActor(WeatherService weatherService)
+    public LowWeatherForecastActor(IServiceScopeFactory serviceScopeFactory)
     {
+        using var scope = serviceScopeFactory.CreateScope();
+        var weatherService = scope.ServiceProvider.GetRequiredService<WeatherService>();
         Receive<LowWeatherForecast>(forecast =>
         {
             Console.WriteLine($"Received a low weather forecast with temperature {forecast.ForecastType}");

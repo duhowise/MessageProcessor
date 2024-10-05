@@ -226,7 +226,8 @@ public class MainActor:ReceiveActor
 ## Considerations for Child Actors with Dependencies
 
 Actors in Akka are designed to be long-lived and can be thought of as "singletons" within their context. This characteristic has implications for how dependencies are managed, particularly when dealing with scoped dependencies. Scoped dependencies are typically created per request or per operation, which contrasts with the long-lived nature of actors. 
-When injecting scoped dependencies into actors that use the `DependencyResolver`, it important to note that scoped dependencies will throw a `TypeLoadException`. Registering dependencies as singletons or transient however work. Depending on your usecase, this may or may not pose challenges to other parts of your system and should be considered carefully.
+When injecting scoped dependencies into actors that use the `DependencyResolver`, it important to note that scoped dependencies will throw a `TypeLoadException`. Registering dependencies as singletons or transient however work. Depending on your use case, this may or may not pose challenges to other parts of your system and should be considered carefully.
+I suggest however that you take dependencies on `IServiceScopeFactory`,or `IServiceProvider` instead to avoid any issues in this regard.
 ```csharp
 var builder = WebApplication.CreateBuilder(args);
 
