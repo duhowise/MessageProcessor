@@ -113,30 +113,77 @@ public class MediumWeatherForecastActor:ReceiveActor
 }
 ```
 
-4. **New MainActor Without the `DependencyResolver`**
+## Without the `DependencyResolver`
 
-After we are done separating the main actor logic into each child actor; it is time to instantiate each of the child actors and their dependencies, but this would present a number of drawbacks such as tight coupling,reduced testability etc.
-See below how that would look like:
+Without the `DependencyResolver`,we could do a number of things to create child actors in the main actor.
+1. **One of the ways is to manually create the child actors** and forward messages to them. Since one of our Child Actors has a dependency, we will need to pass the dependency to the child actor's constructor; but that also means that the main actor will need to have access to the dependency. 
+This is not ideal as it couples the main actor to the dependency, making it harder to test and maintain.
+Below is an example :
 
 ```csharp
-public class MainActor : ReceiveActor
+using Akka.Actor;
+using MessageProcessor.Models;
+using MessageProcessor.Services;
+
+namespace MessageProcessor.Actors
 {
-    private readonly IActorRef _mediumWeatherForecastActor;
-    private readonly IActorRef _lowWeatherForecastActor;
-    private readonly IActorRef _highWeatherForecastActor;
-
-    public MainActor()
+    public class MainActor : ReceiveActor
     {
-        _highWeatherForecastActor = Context.ActorOf(Props.Create(() => new HighWeatherForecastActor()), "HighWeatherForecastActor");
-        _lowWeatherForecastActor = Context.ActorOf(Props.Create(() => new LowWeatherForecastActor()), "LowWeatherForecastActor");
-        _mediumWeatherForecastActor = Context.ActorOf(Props.Create(() => new MediumWeatherForecastActor()), "MediumWeatherForecastActor");
+        
+        //main actor takes a dependency on the external service
+        public MainActor(WeatherService weatherService)
+        {
+            // Create child actors with their dependencies
+            var lowWeatherForecastActor = Context.ActorOf(Props.Create(() => new LowWeatherForecastActor(weatherService)), nameof(LowWeatherForecastActor));
+            var mediumWeatherForecastActor = Context.ActorOf(Props.Create(() => new MediumWeatherForecastActor()), nameof(MediumWeatherForecastActor));
+            var highWeatherForecastActor = Context.ActorOf(Props.Create(() => new HighWeatherForecastActor()), nameof(HighWeatherForecastActor));
 
-        Receive<LowWeatherForecast>(message => _lowWeatherForecastActor.Forward(message));
-        Receive<MediumWeatherForecast>(message => _mediumWeatherForecastActor.Forward(message));
-        Receive<highWeatherForecastActor>(message => _highWeatherForecastActor.Forward(message));
+            // Define message handling
+            Receive<LowWeatherForecast>(forecast =>
+            {
+                lowWeatherForecastActor.Forward(forecast);
+            });
+            Receive<MediumWeatherForecast>(forecast =>
+            {
+                mediumWeatherForecastActor.Forward(forecast);
+            });
+            Receive<HighWeatherForecast>(forecast =>
+            {
+                highWeatherForecastActor.Forward(forecast);
+            });
+        }
     }
 }
+
 ```
+For the parameterless child actors, you could use the generic `Props.Create` method to create the child actors like so:
+```csharp
+var mediumWeatherForecastActor = Context.ActorOf(Props.Create<MediumWeatherForecastActor>(), nameof(MediumWeatherForecastActor));
+After this the main actor can be registered in the `Program.cs` as shown below:
+
+```csharp
+var builder = WebApplication.CreateBuilder(args);
+// Register WeatherService as a singleton
+builder.Services.AddSingleton<WeatherService>();
+
+// Configure Akka.NET ActorSystem
+builder.Services.AddAkka("MessageProcessor", (configurationBuilder, provider) =>
+{
+    configurationBuilder.WithActors((system, registry) =>
+    {
+        var weatherService = provider.GetRequiredService<WeatherService>();
+        var mainActorProps = Props.Create(() => new MainActor(weatherService));
+        var mainActor = system.ActorOf(mainActorProps, nameof(MainActor));
+        registry.Register<MainActor>(mainActor);
+    });
+    });
+
+var app = builder.Build();
+app.Run();
+
+```
+It is immediately visible how much more we needed to write to mamage one dependency for one child actor. Imagine if this actor had five more and the other child actors, also had two each; this could immediately evolve into a very hard to manage mess, causing readability to suffer.
+
 ## Refactor to Dependency Resolver
 1. **Recreate the Child Actors**: In your main actor using the `DependencyResolver.For`.
    We refactor the same Main Actor to swap out the various manual initialisations in favour of the dependency resolver.
