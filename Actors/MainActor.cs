@@ -9,7 +9,8 @@ public class MainActor:ReceiveActor
     public MainActor(IServiceScopeFactory serviceScopeFactory)
     {
         // var resolver = DependencyResolver.For(Context.System);
-        var lowWeatherForecastActor = Context.ActorOf(Props.Create(()=>new LowWeatherForecastActor(serviceScopeFactory)),nameof(LowWeatherForecastActor));
+        // var lowWeatherForecastActor = Context.ActorOf(Props.Create(()=>new LowWeatherForecastActor(serviceScopeFactory)),nameof(LowWeatherForecastActor));
+        var lowWeatherForecastActor = Context.ActorOf(Props.Create <LowWeatherForecastActor >(serviceScopeFactory),nameof(LowWeatherForecastActor));
         var mediumWeatherForecastActor = Context.ActorOf(Props.Create <MediumWeatherForecastActor >(),nameof(MediumWeatherForecastActor));
         var highWeatherForecastActor = Context.ActorOf(Props.Create<HighWeatherForecastActor>(),nameof(HighWeatherForecastActor));
         

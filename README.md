@@ -30,7 +30,7 @@ Once your `ActorSystem` is set up, you can set up your main actor that will be r
 1. **Define Your Main Actor**: Create a main actor that will handle messages and create child actors as needed. Here is an example of a main actor with message handling:
 
 ```csharp
-﻿using Akka.Actor;
+using Akka.Actor;
 using MessageProcessor.Models;
 namespace MessageProcessor.Actors;
 public class MainActor:ReceiveActor
@@ -53,7 +53,7 @@ public class MainActor:ReceiveActor
 }
 ```
 
-2. **Register the Actor**: Use the Akka.Hosting API to register your actor in the `ConfigureServices` method.
+2. **Register the Actor**: Use the Akka.Hosting API to register your actor in your `Program.cs`.
 
 ```csharp
 var builder = WebApplication.CreateBuilder(args);
@@ -218,6 +218,9 @@ public class MainActor:ReceiveActor
     public MainActor(IServiceScopeFactory serviceScopeFactory)
     {
         var lowWeatherForecastActor = Context.ActorOf(Props.Create(()=>new LowWeatherForecastActor(serviceScopeFactory)),nameof(LowWeatherForecastActor));
+       //Or
+        //var lowWeatherForecastActor = Context.ActorOf(Props.Create <LowWeatherForecastActor >(serviceScopeFactory),nameof(LowWeatherForecastActor));
+        //which I consider cleaner. plust it avoids the use of the 'new' keyword.
         var mediumWeatherForecastActor = Context.ActorOf(Props.Create <MediumWeatherForecastActor >(),nameof(MediumWeatherForecastActor));
         var highWeatherForecastActor = Context.ActorOf(Props.Create<HighWeatherForecastActor>(),nameof(HighWeatherForecastActor));
         
