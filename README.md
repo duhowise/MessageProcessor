@@ -1,6 +1,10 @@
-﻿# Escape Akka.Hosting's Child Actor Migration Hell with DependencyResolver
+﻿# Creating Akka.NET Child Actor's in Dependency Injection Environments
 
-Migrating to Akka.Hosting can present challenges, especially when dealing with child actors and dependency injection. However, by leveraging the `DependencyResolver` provided by `Akka.DependencyInjection`, you can streamline the process and enhance your actor management. This article will guide you through the steps to effectively use `DependencyResolver` for creating child actors in an Akka.Hosting environment.
+Migrating to Akka.Hosting can introduce several challenges, particularly when dealing with child actors and their dependencies in a Dependency Injection (DI) environment. This article explores multiple approaches to managing child actors within Akka.NET including leveraging Akka’s DependencyResolver to simplify actor creation.
+
+From manually passing dependencies and creating child actors within your main actor to utilizing IServiceProvider or IServiceScopeFactory for managing scoped dependencies, each method comes with its own trade-offs. We'll also demonstrate how the DependencyResolver can streamline the process, helping to decouple actors from their dependencies and improving maintainability.
+
+By comparing these various techniques, you'll be able to choose the best approach for your use case, whether you're looking to minimize code complexity, enhance testability, or maintain more granular control over your actor system.
 
 ## Setting Up Akka.Hosting
 
